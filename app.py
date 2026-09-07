@@ -278,11 +278,11 @@ if st.session_state.portal == 'apply':
 
         st.subheader('6. Supporting Documents')
         id_document = st.file_uploader('ID / Passport *', type=['pdf','png','jpg','jpeg'])
-        payslip = st.file_uploader('Latest Payslip *', type=['pdf','png','jpg','jpeg'])
+        payslip = st.file_uploader('Latest Payslip (Optional)', type=['pdf','png','jpg','jpeg'])
         bank_statement_1 = st.file_uploader('Bank Statement - Month 1 *', type=['pdf'])
-        bank_statement_2 = st.file_uploader('Bank Statement - Month 2 *', type=['pdf'])
-        bank_statement_3 = st.file_uploader('Bank Statement - Month 3 *', type=['pdf'])
-        proof_of_address = st.file_uploader('Proof of Address *', type=['pdf','png','jpg','jpeg'])
+        bank_statement_2 = st.file_uploader('Bank Statement - Month 2 (Optional)', type=['pdf'])
+        bank_statement_3 = st.file_uploader('Bank Statement - Month 3 (Optional)', type=['pdf'])
+        proof_of_address = st.file_uploader('Proof of Address (Optional)', type=['pdf','png','jpg','jpeg'])
 
         st.subheader('7. Consents')
         consent_credit = st.checkbox('I consent to a credit and affordability assessment.')
@@ -290,16 +290,39 @@ if st.session_state.portal == 'apply':
         submit_application = st.form_submit_button('Submit Loan Application', type='primary')
 
     if submit_application:
-        if not all([first_name.strip(), surname.strip(), id_number.strip(), cellphone.strip()]):
-            st.error('Complete all required personal details.')
+        missing_personal = []
+        if not first_name.strip():
+            missing_personal.append('First Name')
+        if not surname.strip():
+            missing_personal.append('Surname')
+        if not id_number.strip():
+            missing_personal.append('SA ID / Passport Number')
+        if not cellphone.strip():
+            missing_personal.append('Cellphone')
+
+        if missing_personal:
+            st.error('Missing required personal details: ' + ', '.join(missing_personal))
             st.stop()
 
-        required_docs = [id_document,payslip,bank_statement_1,bank_statement_2,bank_statement_3,proof_of_address]
-        if not all(required_docs):
-            st.error('Upload ID, payslip, all 3 bank statements and proof of address.')
+        missing_docs = []
+        if id_document is None:
+            missing_docs.append('ID / Passport')
+
+        bank_statements = [bank_statement_1, bank_statement_2, bank_statement_3]
+        if not any(bank_statements):
+            missing_docs.append('At least one Bank Statement')
+
+        if missing_docs:
+            st.error('Missing required document(s): ' + ', '.join(missing_docs))
             st.stop()
+
         if not consent_credit or not consent_privacy:
-            st.error('Both consents are required.')
+            missing_consents = []
+            if not consent_credit:
+                missing_consents.append('Credit and affordability assessment consent')
+            if not consent_privacy:
+                missing_consents.append('Privacy / information processing consent')
+            st.error('Missing required consent(s): ' + ', '.join(missing_consents))
             st.stop()
 
         total_expenses = rent + food + transport + insurance + existing_loans + other_expenses
@@ -345,6 +368,8 @@ if st.session_state.portal == 'apply':
                 ('Proof of Address', proof_of_address),
             ]
             for doc_type, uploaded_file in docs:
+                if uploaded_file is None:
+                    continue
                 file_path = save_uploaded_file(uploaded_file, application_number, doc_type)
                 conn.execute('''
                     INSERT INTO application_documents(
