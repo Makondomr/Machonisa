@@ -97,15 +97,16 @@ def get_lender_by_access(lender_code, cellphone):
     return lender
 
 
-def get_application_by_access(application_number, cellphone):
+def get_application_by_id(id_number):
     conn = get_connection()
-    row = conn.execute('''
-        SELECT a.*, b.first_name, b.surname, b.cellphone, b.email, b.province
+    row = conn.execute("""
+        SELECT a.*, b.first_name, b.surname, b.cellphone, b.email, b.province, b.id_number
         FROM loan_applications a
         JOIN borrowers b ON b.id=a.borrower_id
-        WHERE UPPER(a.application_number)=UPPER(?) AND b.cellphone=?
+        WHERE UPPER(TRIM(b.id_number))=UPPER(TRIM(?))
+        ORDER BY a.id DESC
         LIMIT 1
-    ''', (application_number.strip(), normalise_cell(cellphone))).fetchone()
+    """, (id_number.strip(),)).fetchone()
     conn.close()
     return row
 
@@ -391,8 +392,7 @@ if st.session_state.portal == 'apply':
         conn.close()
 
         st.success('Application submitted successfully.')
-        st.markdown(f"### Your Application Number: `{application_number}`")
-        st.write('Keep this number. Use it with your cellphone number to check offers and loan status.')
+        st.write('Use your ID / Passport number to check your offers and loan status.')
         if matching_count:
             st.info(f'Your application currently aligns with {matching_count} lender(s). Matching does not mean approval.')
         else:
@@ -408,15 +408,20 @@ elif st.session_state.portal == 'track':
         clear_portal()
 
     if 'tracked_application_id' not in st.session_state:
+        st.write('Enter the same ID / Passport number used when you applied.')
         with st.form('tracking_form'):
-            application_number = st.text_input('Application Number')
-            cellphone = st.text_input('Cellphone Number')
-            check = st.form_submit_button('Check Application', type='primary')
+            borrower_id_number = st.text_input('SA ID / Passport Number')
+            check = st.form_submit_button('Check My Offers', type='primary')
         if check:
-            application = get_application_by_access(application_number, cellphone)
-            if not application:
-                st.error('Application number and cellphone do not match.')
+            if not borrower_id_number.strip():
+                st.error('Enter your SA ID / Passport number.')
                 st.stop()
+
+            application = get_application_by_id(borrower_id_number)
+            if not application:
+                st.error('No application was found for that ID / Passport number.')
+                st.stop()
+
             st.session_state.tracked_application_id = application['id']
             st.rerun()
         st.stop()
@@ -512,7 +517,7 @@ elif st.session_state.portal == 'track':
     else:
         st.info('No loan has been created yet.')
 
-    if st.button('Check Another Application'):
+    if st.button('Check Another ID / Passport'):
         st.session_state.pop('tracked_application_id', None)
         st.rerun()
 
