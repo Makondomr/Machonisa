@@ -55,11 +55,25 @@ def normalise_cell(cell):
 def save_uploaded_file(uploaded_file, application_number, document_type):
     app_dir = UPLOAD_DIR / application_number
     app_dir.mkdir(parents=True, exist_ok=True)
-    safe_name = uploaded_file.name.replace('/', '_').replace('\\', '_')
-    filename = f"{document_type.replace(' ', '_')}_{uuid.uuid4().hex[:6]}_{safe_name}"
+
+    safe_document_type = (
+        str(document_type)
+        .replace("/", "_")
+        .replace("\\", "_")
+        .replace(" ", "_")
+    )
+    safe_name = (
+        str(uploaded_file.name)
+        .replace("/", "_")
+        .replace("\\", "_")
+    )
+
+    filename = f"{safe_document_type}_{uuid.uuid4().hex[:6]}_{safe_name}"
     file_path = app_dir / filename
-    with open(file_path, 'wb') as f:
+
+    with open(file_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
+
     return str(file_path)
 
 
